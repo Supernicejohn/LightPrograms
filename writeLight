@@ -1,0 +1,162 @@
+args = {...}
+local text = {}
+if fs.exists(args[1]) then
+   local f = fs.open(args[1],"r")
+   local i = 0
+   repeat
+      i = i + 1
+      text[i] = file.readLine()
+   until text[i] == nil
+end
+if fs.exists("frame") == false then
+   error("frame API is required",9000)
+end
+os.loadAPI("frame")
+local size_x,size_y = term.getSize()
+local scroll_y = 0
+local scroll_x = 0
+local focus_y = 1
+local focys_x = 1
+local menu = true
+
+--user settings
+local tab_step = 3
+
+--
+local function drawText()
+   local y = 1
+   repeat
+      frame.setText(x,y,text[y+scroll_y]:sub(scroll_x+1,scroll_x+size_x))
+      y = y + 1
+   until y == size_y+1
+   frame.drawAll()
+end
+local function drawMenu()
+   frame.init()
+   frame.setCol("4")
+   frame.setBkg("7")
+   local a = "writeLight"..args[1]
+   frame.setText((size_x+#a)/2,1,a)
+   frame.setText(1,size_y-3,"Save")
+   frame.drawAll()
+end
+local function handle_char(char)
+   if focus_x > 1 then
+      text[focus_y+scroll_y] = text[focus_y+scroll_y]:sub(1,focus_x-1)..char..text[focus_y+scroll_y]
+   elseif focus_x == 1 then
+      text[focus_y+scroll_y] = char..text[focus_y+scroll_y]
+   end
+end
+local function handle_key(key)
+   if key == keys.leftCtrl then
+      if menu then
+         menu = false
+      else
+         menu = true
+      end
+   elseif key == keys.f1 then
+      save(args[1]..".temp")
+      error("drawLight quit by User")
+   elseif key == keys.tab then
+      for i=1,tab_step do
+         handle_char(" ")
+      end
+   elseif key == keys.backspace then
+      
+
+      if focus_x > 2 then
+         text[focus_y+scroll_y] = text[focus_y+scroll_y]:sub(1,focus_x-1)..text[focus_y+scroll_y]:sub(focus_x..#text[focus_y+scroll_y])
+         focus_x = focus_x - 1
+      elseif focus_x == 2 then
+         text[focus_y+scroll_y] = text[focus_y+scroll_y]:sub(2,#text[focus_y+scroll_y])
+         focus_x = 1
+      elseif focus_x == 1 and focus_y == 1 and scroll_y > 0 then
+         focus_x = #text[focus_y+scroll_y-1]
+         text[focus_y+scroll_y-1] = text[focus_y+scroll_y-1]..text[focus_y+scroll_y]
+         local n = 1
+         repeat
+            text[focus_y+scroll_y+n-1] = text[focus_y+scroll_y+n]
+            n = n + 1
+         until text[focus_y+scroll_y-n] == nil
+         scroll_y = scroll_y - 1
+      elseif focus_x == 1 and focus_y+scroll_y > 1 then
+         focus_x = #text[focus_y+scroll_y-1]
+         local n = 1
+         repeat
+            text[focus_y+scroll_y+n-1] = text[focus_y+scroll_y+n]
+            n = n + 1
+         until text[focus_y+scroll_y-n] == nil
+         focus_y = focus_y - 1
+      elseif focus_x == 1 then
+      else
+         error("?:"..focus_x)
+      end
+   elseif key == keys.enter then
+      if focus_x+scroll_x > #text[focus_y+scroll_y] then
+         local n = #text
+         repeat
+            text[focus_y+scroll_y+n] = text[focus_y+scroll_y+n-1]
+            n = n - 1
+         until n == focus_y+scroll_y
+         focus_y = focus_y + 1
+      elseif focus_x > 1 then
+         local n = #text
+         repeat
+            text[focus_y+scroll_y+n] = text[focus_y+scroll_y+n-1]
+            n = n - 1
+         until n == focus_y+scroll_y
+         text[focus_y+scroll_y+1] = text[focus_y+scroll_y]:sub(focus_x+scroll_x,#text[focus_y+scroll_y])
+         focus_y = focus_y + 1
+      elseif focus_x+scroll_x == 1 then
+         local n = #text
+         repeat
+            text[focus_y+scroll_y+n] = text[focus_y+scroll_y+n-1]
+            n = n - 1
+         until n == focus_y+scroll_y
+      else
+         error("?:"..focus_x)
+      end
+   elseif key == keys.up then
+      if scroll_y+focus_y > 1 then
+         if focus_y == 1 then
+            scroll_y = scroll_y - 1
+         else
+            focus_y == focus_y - 1
+         end
+         if #text[focus_y+scroll_y-1] > focus_x+scroll_x then
+         else
+            focus_x = #text[focus_y+scroll_y]+1 or 1
+         end
+      end
+   elseif key == keys.down then
+      if focus_y < size_y then
+         focus_y = focus_y + 1
+      else
+         scroll_y = scroll_y + 1
+      end
+      if #text[focus_y+scroll_y+1] > focus_x+scroll_x then
+      else
+         focus_x = #text[focus_y+scroll_y]+1 or 1
+      end
+   elseif key == keys.right then
+      if #text[focus_y+scroll_y] >= focus_x+scroll_x then
+         if focus_x < size_x then
+            focus_x = focus_x + 1
+         else
+            scroll_x = scroll_x + 1
+         end
+      else
+         scroll_x = 0
+         if focus_y < size_y then
+            focus_y = focus_y + 1
+         else
+            scroll_y = scroll_y + 1
+         end
+         if #text[focus_y+scroll_y+1] > focus_x+scroll_x then
+         else
+            focus_x = #text[focus_y+scroll_y]+1 or 1
+         end
+      end
+   elseif key == keys.left then
+      if scroll_x+focus_x > 1 then
+         if focus_x > 1 then
