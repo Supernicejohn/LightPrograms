@@ -1,0 +1,268 @@
+args = {...}
+if fs.isDir("/drawLight/") == false then
+   fs.makeDir("/.drawLight/")
+end
+term.clear()
+os.loadAPI("frame")
+frame.init()
+local menuColor = "7"
+local c = {}
+c[0] = "0"; c[1] = "1"; c[2] = "2"; c[3] = "3"; c[4] = "4"; c[5] = "5"; c[6] = "6"; c[7] = "7"; c[8] = "8"; c[9] = "9"; c[10] = "a"; c[11] = "b"; c[12] = "c"; c[13] = "d"; c[14] = "e" c[15] = "f";
+local d = {}
+for i=0,15 do
+   d[c[i]] = true
+end
+local MaxX,MaxY = term.getSize()
+local file 
+local canvas = {}
+local current = {}
+local rainbow = false
+current.brushSize = 2
+do
+   local y = 1
+   repeat
+      local x = 1
+      repeat 
+         canvas[frame.totable(x,y)] = " "
+         x = x + 1
+      until x > MaxX
+      y = y + 1
+   until y > MaxY  
+end
+local function load(filename)
+   local file = fs.open(args[1],"r")
+   canvas = textutils.unserialize(file.readAll())
+end
+local function save(filename)
+   if fs.exists(filename) then
+      filename = filename.."(1)"
+   end
+   local a = 2
+   while fs.exists(filename) do
+      filename = filename:sub(1,#filename).."("..a..")"
+   end
+   local file = fs.open(filename,"w")
+   file.write(textutils.serialize(canvas))
+   file.close()
+end
+local function import(filename)
+   if not fs.exists(filename) then
+      error(filename.." does not exist!",9000)
+   end
+   --save("/.drawLight/drawLight_temp"..os.day()..os.time())
+   local w = 1
+   local h = 1
+   local file = fs.open(filename,"r")
+   local line = " "
+   frame.setBkg("f")
+   while h < MaxY+1 do
+      line = file.readLine()
+      w = 1
+      if line ~= nil then
+         repeat
+            canvas[frame.totable(w,h)] = line:sub(w,w)
+            if d[line:sub(w,w)] ~= true then
+               canvas[frame.totable(w,h)] = "f"
+            end
+            w = w + 1
+         until w > MaxX
+      end
+      h = h + 1
+   end
+end
+local function export(filename)
+   local file = fs.open(filename,"w")
+   local xc = 1
+   local yc = 1
+   while yc < MaxY + 1 do
+      xc = 1
+      while xc < MaxX + 1 do
+         file.write(canvas[frame.totable(xc,yc)])
+         xc = xc + 1
+      end
+      file.write("\n")
+      yc = yc + 1
+   end
+   file.close()
+end
+current.color = "0"
+local drawColor = "0"
+if #args < 1 or #args > 2 then
+   error("Usage: drawLight (filename) <fancy>",9000)
+elseif fs.exists(args[1]) then
+   local test = fs.open(args[1],"r")
+   local line = test.readLine()
+   if line:sub(1,1) == "{" then
+      load(args[1])
+   else
+      import(args[1])
+   end
+end
+current.r = 0
+local function paint(x,y)
+   if x > 0 and x < MaxX+1 and y > 0 and y < MaxY+1 then
+      current.r = current.r + 1
+      if current.r == 15 then
+         current.r = 0
+      end
+      if rainbow then
+         drawColor = c[current.r]
+      end
+      frame.setb(x,y,current.color)
+      frame.draw(x,y)
+      canvas[frame.totable(x,y)] = current.color
+   end
+end
+local function paintSize(x,y,n)
+   paint(x,y)
+   repeat
+      paint(x-n+1,y-n+1)
+      paint(x-n+1,y+n-1)
+      paint(x+n-1,y-n+1)
+      paint(x+n-1,y+n-1)      
+      n = n - 1
+   until n == 0
+end
+local function drawCanvas()
+   frame.setCol("f")
+   local y = 1
+   repeat
+      local x = 1
+      repeat
+         frame.setc(x,y,"f")
+         frame.setb(x,y,canvas[frame.totable(x,y)])
+         frame.sett(x,y," ")
+         x = x + 1
+      until x == MaxX + 1
+      y = y + 1
+   until y == MaxY + 1
+   local t = 1
+   if args[2] == "fancy" then   
+      local a = math.floor(MaxX/MaxY)
+      repeat
+         frame.drawPart(a*t,t,MaxX,t+1)
+         frame.drawPart(a*t-1,t,a*t,MaxY)
+         t = t + 1
+      until t == MaxY+1
+      frame.drawPart(1,1,1,MaxY)
+   else
+      frame.drawAll()
+   end
+   frame.setCol(menuColor)
+   frame.setText(MaxX-14,MaxY,"Press left Ctrl")
+   frame.drawPart(MaxX-15,MaxY,MaxX,MaxY)
+end
+local function drawMenu()
+   frame.init()
+   frame.setCol("4")
+   local TopScreen = "drawLight: "..args[1]
+   frame.setText(math.floor((MaxX-#TopScreen)/2)+1,1,TopScreen)
+   frame.setText(1,MaxY-4,"Current Color:")
+   frame.setText(1,MaxY-3,"Colors:")
+   frame.setText(1,MaxY-2,"Save - Export - Import")
+   frame.setText(1,MaxY-1,"Quit")
+   frame.setText(MaxX-14,MaxY,"Press left Ctrl")
+   frame.setBkg(menuColor)
+   local a = 0
+   local x = 9
+   frame.setb(15,MaxY-4,drawColor)
+   repeat
+      frame.setb(x,MaxY-3,c[a])
+      a = a + 1
+      x = x + 1
+   until a == 16
+      frame.setText(25,MaxY-3,"Rainbow")
+   if args[2] == "fancy" then
+      local t = MaxY
+      local a = math.floor(MaxX/MaxY)
+      repeat
+         frame.drawPart(a*t,t,MaxX,t+1)
+         frame.drawPart(a*t-1,t,a*t,MaxY)
+         t = t - 1
+      until t == -1
+      frame.drawPart(1,1,1,MaxY)
+   else
+      frame.drawAll()
+   end
+end
+local function cleanUp(msg)
+   term.clear()
+   term.setCursorPos(1,1)
+   error(msg,9000)
+end
+local function input()
+   e = {os.pullEvent()}
+   if menu and e[1] == "mouse_click" then
+      if e[4] == MaxY-3 and e[3] > 8 and e[3] < 25 then
+         drawColor = c[e[3]-9]
+         rainbow = false
+      elseif e[4] == MaxY-3 and e[3] > 24 and e[3] < 32 then
+         rainbow = true
+      elseif e[4] == MaxY-2 and e[3] < 5 then
+         save(args[1])
+      elseif e[4] == MaxY-2 and e[3] > 16 and e[3] < 23 then
+         term.setCursorPos(MaxX/2-5,2)
+         term.setBackgroundColor(colors.gray)
+         import(read())
+      elseif e[4] == MaxY-2 and e[3] > 6 and e[3] < 16 then
+         export(args[1])
+      elseif e[4] == MaxY-1 and e[3] < 6 then
+         local userID 
+         if os.computerLabel() ~= nil then
+            userID = "\""..os.getComputerLabel().."\""
+         else
+            userID = "computer"
+         end
+         save("/.drawLight/drawLight_temp"..os.day()..os.time())
+         cleanUp(shell.getRunningProgram().." Quit by "..userID.." user.")
+      end
+   end
+   if menu == false then
+      if e[1] == "mouse_click" or e[1] == "mouse_drag" then 
+         if e[2] == 1 then
+            current.color = drawColor
+            paintSize(e[3],e[4],current.brushSize)
+         elseif e[2] == 2 then
+            current.color = "f"
+            paintSize(e[3],e[4],current.brushSize)
+         end
+      end
+   end
+      --frame.drawPart(MaxX-10,MaxY,MaxX,MaxY)
+   if e[1] == "key_up" and e[2] == keys.leftCtrl then
+      if menu == true then
+         menu = false
+      else
+         menu = true
+      end
+   end
+   if e[1] == "key_up" and e[2] == keys.f1 then
+      save("/.drawLight/drawLight_temp"..os.day()..os.time())
+      local userID 
+      if os.computerLabel() ~= nil then
+         userID = "\""..os.getComputerLabel().."\""
+      else
+         userID = "computer"
+      end
+      cleanUp(shell.getRunningProgram().." Quit by "..userID.." user.")
+   end
+   if e[1] == "mouse_scroll" then
+      if e[2] == -1 and current.brushSize < 15 then
+         current.brushSize = current.brushSize + 1
+      elseif e[2] == 1 and current.brushSize > 1 then
+         current.brushSize = current.brushSize - 1
+      end
+   end
+end
+while true do
+   drawMenu()
+   repeat
+      input()
+      frame.setb(15,MaxY-4,drawColor)
+      frame.draw(15,MaxY-4)
+   until menu == false
+   drawCanvas()
+   repeat
+      input()
+   until menu
+end
